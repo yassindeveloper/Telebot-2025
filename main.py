@@ -1,59 +1,60 @@
-import telebot
-import speedtest
-import matplotlib.pyplot as plt
-import psutil
 import time
-import os
+import speedtest
+import telebot
+import psutil
 from datetime import datetime
 
-BOT_TOKEN = os.getenv("7292861219:AAHGXONU73SJM7hnz0v0u8Z8QG8yhXH6E28")
-CHAT_ID = os.getenv("7699570274")
+# ضع توكن البوت هنا
+TOKEN = "7292861219:AAHGXONU73SJM7hnz0v0u8Z8QG8yhXH6E28"
+CHAT_ID = "7699570274"
 
-bot = telebot.TeleBot(BOT_TOKEN)
+bot = telebot.TeleBot(TOKEN)
 
-def test_speed():
+def analyze_speed():
     st = speedtest.Speedtest()
     st.get_best_server()
-    download_speed = st.download() / 1_000_000  # Mbps
-    upload_speed = st.upload() / 1_000_000      # Mbps
+    download = st.download() / 1_000_000  # Mbps
+    upload = st.upload() / 1_000_000      # Mbps
     ping = st.results.ping
-    return round(download_speed, 2), round(upload_speed, 2), round(ping, 2)
 
-def analyze_network():
-    download, upload, ping = test_speed()
+    # تحليل ذكي
+    download_score = "✅ ممتاز" if download > 20 else "⚠️ ضعيف"
+    upload_score = "✅ جيد" if upload > 5 else "⚠️ ضعيف"
+    ping_score = "✅ ممتاز" if ping < 50 else "⚠️ عالي"
+
+    # تحليل استهلاك النظام
     cpu = psutil.cpu_percent()
     ram = psutil.virtual_memory().percent
 
-    # رسم بياني
-    labels = ["Download", "Upload", "Ping", "CPU %", "RAM %"]
-    values = [download, upload, ping, cpu, ram]
-    colors = ["blue", "green", "red", "orange", "purple"]
+    # نقاط الضعف
+    weaknesses = []
+    if download < 10: weaknesses.append("❗ تنزيل ضعيف")
+    if upload < 2: weaknesses.append("❗ رفع ضعيف")
+    if ping > 100: weaknesses.append("❗ بنج مرتفع")
+    if cpu > 85: weaknesses.append("🔻 استهلاك CPU مرتفع")
+    if ram > 90: weaknesses.append("🔻 استهلاك RAM مرتفع")
 
-    plt.figure(figsize=(8, 4))
-    plt.bar(labels, values, color=colors)
-    plt.title(f"Network Analysis - {datetime.now().strftime('%H:%M:%S')}")
-    plt.ylim(0, max(values) + 10)
-    plt.tight_layout()
-    chart_file = "chart.png"
-    plt.savefig(chart_file)
-    plt.close()
+    report = f"""📡 تقرير فحص الشبكة ({datetime.now().strftime('%H:%M:%S')}):
 
-    summary = f"""<b>Network Report</b>
-⬇️ Download: {download} Mbps
-⬆️ Upload: {upload} Mbps
-🏓 Ping: {ping} ms
-🧠 CPU: {cpu}%
-💾 RAM: {ram}%
-⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-"""
+⬇️ التحميل: {download:.2f} Mbps — {download_score}
+⬆️ الرفع: {upload:.2f} Mbps — {upload_score}
+📶 البنغ: {ping:.2f} ms — {ping_score}
 
-    with open(chart_file, "rb") as photo:
-        bot.send_photo(CHAT_ID, photo, caption=summary, parse_mode="HTML")
+🖥️ CPU: {cpu:.1f}%
+💾 RAM: {ram:.1f}%
 
-if __name__ == "__main__":
-    while True:
-        try:
-            analyze_network()
-        except Exception as e:
-            bot.send_message(CHAT_ID, f"❌ Error: {str(e)}")
+🔍 تحليل:
+{chr(10).join(weaknesses) if weaknesses else '✅ لا توجد مشاكل واضحة'}
+    """
+    return report
+
+
+# ⏱️ التكرار كل دقيقتين
+while True:
+    try:
+        result = analyze_speed()
+        bot.send_message(CHAT_ID, result)
         time.sleep(120)  # كل دقيقتين
+    except Exception as e:
+        bot.send_message(CHAT_ID, f"حدث خطأ أثناء الفحص:\n{str(e)}")
+        time.sleep(60)
